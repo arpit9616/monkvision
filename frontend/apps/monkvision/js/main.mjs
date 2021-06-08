@@ -32,14 +32,13 @@ function playPauseCharts(img, force) {
     else if (img.src.endsWith("pause.svg") && force!="start") { img.src = "./img/play.svg"; _stopRefresh(); }
 }
 
-async function interceptPageLoadData() {
-
-    const pagedata_func = async data => {
+async function interceptPageLoadAndPageLoadData() {
+    router.addOnLoadPageData(`${APP_CONSTANTS.APP_PATH}/main.html`, async data => {
         // add in css, theme and html data to the page data object
         await utils.addThemeDataAndCSS(data, "main");
 
         // load dashboards config and build the data object
-        const dashboardsRaw = await (await fetch(`${APP_CONSTANTS.APP_PATH}/conf/dashboards.json`)).json();
+        const dashboardsRaw = await $$.requireJSON(`${APP_CONSTANTS.APP_PATH}/conf/dashboards.json`);
         data.dashboards = [];
         for (const key of Object.keys(dashboardsRaw)) {
             const file = dashboardsRaw[key].split(",")[0], refresh = parseInt(dashboardsRaw[key].split(",")[1].split(":")[1]),
@@ -69,11 +68,11 @@ async function interceptPageLoadData() {
             data.dateTimeNow = session.get(SELECTED_DATES).to;
             data.dateTimeWeekAgo = session.get(SELECTED_DATES).from;
         }
-    }
+    });
 
-    const pageload_func = async data => {
+    router.addOnLoadPage(`${APP_CONSTANTS.APP_PATH}/main.html`, async data => {
         // select current dashboard icon on page load
-        const dashboardsRaw = await (await fetch(`${APP_CONSTANTS.APP_PATH}/conf/dashboards.json`)).json();
+        const dashboardsRaw = await $$.requireJSON(`${APP_CONSTANTS.APP_PATH}/conf/dashboards.json`);
         const allDashIcons = document.querySelectorAll("div#leftheader > img.dashicon");
         for (const dashIcon of allDashIcons) if (data.dash.endsWith(dashboardsRaw[dashIcon.id].split(",")[0]))
             dashIcon.classList.add("selected"); else dashIcon.classList.remove("selected");
@@ -81,10 +80,7 @@ async function interceptPageLoadData() {
         // load initial charts and set the refresh interval
         timeRangeUpdated(false);    // load initial charts they will get the dates from HTML
         if (data.refresh) {session.set(REFRESH_INTERVAL, data.refresh); _startRefresh()};
-    }
-
-    router.addOnLoadPageData(`${APP_CONSTANTS.APP_PATH}/main.html`, pagedata_func);
-    router.addOnLoadPage(`${APP_CONSTANTS.APP_PATH}/main.html`, pageload_func);
+    });
 }
 
 async function changePassword(_element) {
@@ -107,4 +103,4 @@ function _startRefresh() {
     loginmanager.addLogoutListener(_=>clearInterval(session.get(DASHBOARD_TIMER)));
 }
 
-export const main = {changePassword, interceptPageLoadData, timeRangeUpdated, playPauseCharts};
+export const main = {changePassword, interceptPageLoadAndPageLoadData, timeRangeUpdated, playPauseCharts};
